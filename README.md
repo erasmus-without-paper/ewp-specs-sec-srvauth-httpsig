@@ -8,19 +8,6 @@ signatures included in HTTP responses.
 * [See the index of all other EWP Specifications][develhub]
 
 
-Status
-------
-
-This document will **eventually** describe a new server authentication protocol.
-However, at the moment, this is still a DRAFT, and SHOULD NOT be implemented
-yet.
-
-Note, that this **will not** entirely replace [TLS Server Certificate
-Authentication][srvauth-tlscert] method which we use now. If will **probably**
-only be RECOMMENDED to be supported as an addition to that. This still requires
-further discussion.
-
-
 Introduction
 ------------
 
@@ -30,7 +17,7 @@ This authentication method makes use of:
  * The `Digest` header, specified in [RFC 3230][digest-base].
  * The `SHA-256` Digest Algorithm, specified in [RFC 5843][digest-sha256].
  * The `Signature` header, specified in
-   [draft-cavage-http-signatures-06][httpsig-signature] (presumably,
+   [draft-cavage-http-signatures-07][httpsig-signature] (presumably,
    [soon to become RFC](https://github.com/erasmus-without-paper/ewp-specs-architecture/issues/17#issuecomment-286142084)),
    along with its `rsa-sha256` signature algorithm.
 
@@ -58,11 +45,65 @@ key-pair you use for your TLS communication if you want to.
 
 ### Publish your key
 
-You MUST publish your public key in the Registry, via the Manifest file.
+Each partner declares (in his [Manifest file][discovery-api]) a list of public
+keys which its servers can use for siging their responses. This list is later
+fetched by registry, and the keys (or their fingerprints) are served to all
+other partners see (see [Registry API][registry-api] for details).
 
-**Important:** This is a DRAFT. Currently the Registry does not serve any
-information on server keys. But it would need to, before this authentication is
-introduced. We still need to design how this would look like.
+Usually (but not necessarily always) you will bind a single public key to
+endpoints you serve. Once the client confirms that the server is in possession
+of the matching private key, it is then able to identify (with the help of the
+Registry again) if this key-pair has been listed as one with which server
+authentication at this endpoint can be performed.
+
+Note, that the Registry will verify if your keys meet certain security
+standards (i.e. their length). These standards MAY change in time. Remember to
+include `<admin-email>` elements in your manifest file if you want to be
+notified about such changes.
+
+
+### Check if you *need* to sign (optional)
+
+This step is RECOMMENDED, but not required. If you decide *not* to implement
+it, then you need to sign all your responses (even if the client doesn't want
+you to).
+
+A single server endpoint MAY support multiple server authentication methods.
+For this reason, the *client* notifies the server which of these methods it
+wants to use.
+
+For example, if your endpoint supports both `<tlscert/>` and `<httpsig/>`, then
+the client might be okay with using `<tlscert/>` and you are NOT REQUIRED to
+sign your response in this case.
+
+How does the client notify you if it wants your signature? Since we couldn't
+find any standard header for expressing that, we have invented our own:
+
+ * If the request contains the `Accept-Signature` header (case insensitive),
+   with one of the comma-separated values equal to `rsa-sha256` (case
+   insensitive again), then you MUST sign your response.
+
+   The value of the header is currently fixed (all EWP clients are required to
+   put `rsa-sha256` there), but this MAY change in the future. Hence, you
+   SHOULD verify if `rsa-sha256` is indeed on the list.
+
+ * If the request contains the `Accept-Signature` header, but no `rsa-sha256`
+   can be found among its values, then you SHOULD respond with HTTP 400 error
+   response. This is a client error, because the client is asking you to sign
+   your response with a method which you do not support (this specification
+   currently requires you to support `rsa-sha256` signature only).
+
+ * If the request doesn't contain the `Accept-Signature` header, then you are
+   NOT REQUIRED to sign your response (you don't need to follow the rest of the
+   steps below). This simply means that the client is not planning to verify
+   your signature, so you don't need to bother and sign it.
+
+   Note, that you MUST NOT force your client to send the `Accept-Signature`
+   header. Even if your endpoint doesn't support any other server
+   authentication method except HTTP Signature, you still MUST allow your
+   client to *not* include the `Accept-Signature` header. You MAY ignore his
+   choice and sign the response, but you MUST NOT treat this situation as an
+   error.
 
 
 ### Include all required headers
@@ -115,6 +156,16 @@ Implementing a client
 This server authentication method **extends** the "standard" TLS Server
 Certificate Authentication method. The clients are REQUIRED to meet all the
 requirements listed [here][srvauth-tlscert].
+
+
+### Include `Accept-Signature` header
+
+You MUST include the `Accept-Signature` header in your request, with the value
+of `rsa-sha256`. This header informs the server that you want it to use HTTP
+Signature for server authentication.
+
+Note, that currently this specification forces implementers to use `rsa-sha256`
+signatures. This MAY change in the future (in a backward-compatible way).
 
 
 ### Consider signing yourself
@@ -186,8 +237,9 @@ You are expecting the response to be signed with a very specific key. The key's
 fingerprint MUST match the fingerprint published by the server in the Registry.
 If it doesn't, then you MUST reject the server's response.
 
-**Important:** This is a DRAFT. Currently, the Registry doesn't allow server
-implementers to publish this key.
+How the server publishes this fingerprint depends on the particular API, but
+usually it done via the `server-auth-methods/httpsig` security entry in the
+server manifest's API entry.
 
 
 ### Verify the signature
@@ -240,6 +292,12 @@ The [Authentication and Security][sec-intro] document
 [recommends][sec-method-rules] that each server authentication method
 specification explicitly answers the following questions:
 
+> How the client's request must look like? How can the server know, that the
+> client *wants the server* to use this particular method of authentication?
+
+The server knows that this method is used, when the request contains the
+`Accept-Signature` header.
+
 > How can the client verify the server's identity?
 
 Since this method builds on TLS, the client uses regular HTTPS server
@@ -272,9 +330,9 @@ Yes. See *Non-repudiation* section above.
 [statuses]: https://github.com/erasmus-without-paper/ewp-specs-management/blob/stable-v1/README.md#statuses
 [digest-base]: https://tools.ietf.org/html/rfc3230#section-4.3.2
 [digest-sha256]: https://tools.ietf.org/html/rfc5843#section-2.2
-[httpsig-signature]: https://tools.ietf.org/html/draft-cavage-http-signatures-06#section-4
+[httpsig-signature]: https://tools.ietf.org/html/draft-cavage-http-signatures-07#section-4
 [date-header]: https://tools.ietf.org/html/rfc2616#section-14.18
-[verifying-signature]: https://tools.ietf.org/html/draft-cavage-http-signatures-06#section-2.5
+[verifying-signature]: https://tools.ietf.org/html/draft-cavage-http-signatures-07#section-2.5
 [cliauth-none]: https://github.com/erasmus-without-paper/ewp-specs-sec-cliauth-none
 [cliauth-tlscert]: https://github.com/erasmus-without-paper/ewp-specs-sec-cliauth-tlscert
 [cliauth-httpsig]: https://github.com/erasmus-without-paper/ewp-specs-sec-cliauth-httpsig
