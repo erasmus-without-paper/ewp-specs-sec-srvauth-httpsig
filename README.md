@@ -46,11 +46,11 @@ key-pair you use for your TLS communication if you want to.
 ### Publish your key
 
 Each partner declares (in his [Manifest file][discovery-api]) a list of public
-keys which its servers can use for siging their responses. This list is later
-fetched by registry, and the keys (or their fingerprints) are served to all
+keys which its servers can use for signing their responses. This list is later
+fetched by registry, and the keys (and/or their fingerprints) are served to all
 other partners see (see [Registry API][registry-api] for details).
 
-Usually (but not necessarily always) you will bind a single public key to
+Usually (but not necessarily always) you will bind a single public key to all
 endpoints you serve. Once the client confirms that the server is in possession
 of the matching private key, it is then able to identify (with the help of the
 Registry again) if this key-pair has been listed as one with which server
@@ -148,9 +148,10 @@ you MUST sign all these headers too. The headers mentioned above are important
 for handling authentication, non-repudiation and security described in this
 document, but other headers can also be very important in your case.
 
-The `keyId` parameter of the `Signature` header MUST contain a Base64-encoded
-RSA public key (NOT its fingerprint, the entire key). If MUST be one of the
-keys you previously published in your manifest file.
+The `keyId` parameter of the `Signature` header MUST contain a HEX-encoded
+SHA-256 fingerprint of the *public key* part of the kay-pair which you have
+used to sign your response. It MUST match one of the keys you previously
+published in your manifest file.
 
 
 Implementing a client
@@ -233,7 +234,7 @@ date reported by your own clock. The verification fails if:
  * The date cannot be parsed.
 
  * The date does not match your clock **within a certain threshold of time**.
-   
+
    - It is RECOMMENDED to use the **5 minutes** threshold.
    - You MAY choose a greater threshold than 5 minutes, but you MUST NOT choose
      a lower threshold than this.
@@ -248,17 +249,9 @@ your verification process will fail constantly).
 
 Extract the `keyId` from the response's `Signature` header.
 
-It MUST contain a Base64-encoded RSA public key (we use `keyId` parameter to
-transfer to *actual key*, not its ID). If it doesn't, then you MUST reject the
-server's response.
-
-You are expecting the response to be signed with a very specific key. The key's
-fingerprint MUST match the fingerprint published by the server in the Registry.
-If it doesn't, then you MUST reject the server's response.
-
-How the server publishes this fingerprint depends on the particular API, but
-usually it done via the `server-auth-methods/httpsig` security entry in the
-server manifest's API entry.
+It MUST contain a HEX-encoded SHA-256 fingerprint of the RSA public key
+published by the server in the Registry. If it doesn't, then you MUST reject
+the server's response.
 
 
 ### Verify the signature
