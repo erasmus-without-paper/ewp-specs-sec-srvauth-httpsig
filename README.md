@@ -32,9 +32,17 @@ Implementing a server
 
 ### Meet all "inherited" requirements
 
-This server authentication method **extends** the standard TLS Server
-Certificate Authentication method. The servers are REQUIRED to meet all the
+This server authentication method **extends** the standard *TLS Server
+Certificate Authentication* method. The servers are REQUIRED to meet all the
 requirements listed [here][srvauth-tlscert].
+
+In particular, it is RECOMMENDED for servers to declare their support for *TLS
+Server Certificate Authentication*. For example, if they use
+`sec:HttpSecurityOptions` datatype to describe their security requirements,
+then they should have *TLS Server Certificate Authentication* listed among
+their `<sec:client-auth-methods>` elements. This will allow clients which do
+not support *HTTP Signature Server Authentication* to connect to your endpoints
+in a backward-compatible way.
 
 
 ### Generate a key-pair
@@ -83,27 +91,24 @@ find any standard header for expressing that, we have invented our own:
    with one of the comma-separated values equal to `rsa-sha256` (case
    insensitive again), then you MUST sign your response.
 
-   The value of the header is currently fixed (all EWP clients are required to
-   put `rsa-sha256` there), but this MAY change in the future. Hence, you
-   SHOULD verify if `rsa-sha256` is indeed on the list.
+   Note, that this header MAY contain multiple algorithms. You are required to
+   support only `rsa-sha256`.
 
- * If the request contains the `Accept-Signature` header, but no `rsa-sha256`
-   can be found among its values, then you SHOULD respond with HTTP 400 error
-   response. This is a client error, because the client is asking you to sign
-   your response with a method which you do not support (this specification
-   currently requires you to support `rsa-sha256` signature only).
+ * If the request contains the `Accept-Signature` header, but you don't support
+   any of the algorithms requested there, then you SHOULD ignore such signature
+   request. It is RECOMMENDED to proceed as if the client didn't send any
+   `Accept-Signature` header.
 
- * If the request doesn't contain the `Accept-Signature` header, then you are
-   NOT REQUIRED to sign your response (you don't need to follow the rest of the
-   steps below). This simply means that the client is not planning to verify
-   your signature, so you don't need to bother and sign it.
+ * If the request doesn't contain the `Accept-Signature` header (or you don't
+   support any of the requested algorithms), then you are NOT REQUIRED to sign
+   your response (and you don't need to follow the rest of the steps below).
+   This simply means that the client won't verify your signature, so you don't
+   need to bother and sign it (but you MAY, if you wish).
 
-   Note, that you MUST NOT force your client to send the `Accept-Signature`
-   header. Even if your endpoint doesn't support any other server
-   authentication method except HTTP Signature, you still MUST allow your
-   client to *not* include the `Accept-Signature` header. You MAY ignore his
-   choice and sign the response, but you MUST NOT treat this situation as an
-   error.
+   Note, that you SHOULD NOT force your client to send the `Accept-Signature`
+   header. You SHOULD allow your client to *not* include the `Accept-Signature`
+   header, and therefore "fall back" to the regular *TLS Server Certificate
+   Authentication*.
 
 
 ### Include all required headers
@@ -116,8 +121,15 @@ find any standard header for expressing that, we have invented our own:
    response).
 
  * You MUST include the `Digest` header in your request, as explained
-   [here][digest-base]. You MUST use SHA-256 algorithm for generating the
-   digest.
+   [here][digest-base]. If the client sent you a `Want-Digest` header, then you
+   MAY take it into account when choosing your digest algorithm, but you are
+   REQUIRED to support only one digest algorithm - `SHA-256`.
+
+   If the client didn't send a `Want-Digest` header, then you still MUST
+   include the digest (in the `SHA-256` algorithm).
+
+   Also note, that your `Digest` header MAY contain many digests, in different
+   algorithms.
 
  * If the client's request contained the `X-Request-Id` header, then you MUST
    include the `X-Request-Id` header with the same contents in your response.
@@ -131,9 +143,10 @@ find any standard header for expressing that, we have invented our own:
 ### Sign your response
 
 You MUST include the `Signature` header in your response, as explained
-[here][httpsig-signature]. You MUST use the `rsa-sha256` signature algorithm,
-and you MUST include **at least** the following values in your `headers`
-parameter:
+[here][httpsig-signature]. You MUST support the `rsa-sha256` signature
+algorithm. You MAY use a different algorithm, if the client listed this
+algorithm in its `Accept-Signature` header. You MUST include **at least** the
+following values in your `headers` parameter:
 
  - `date` or `original-date` (it MUST contain at least one of those, it also
    MAY contain both),
@@ -148,10 +161,10 @@ you MUST sign all these headers too. The headers mentioned above are important
 for handling authentication, non-repudiation and security described in this
 document, but other headers can also be very important in your case.
 
-The `keyId` parameter of the `Signature` header MUST contain a HEX-encoded
-SHA-256 fingerprint of the *public key* part of the kay-pair which you have
-used to sign your response. It MUST match one of the keys you previously
-published in your manifest file.
+The `keyId` parameter of the `Signature` header MUST contain a lower-case
+HEX-encoded SHA-256 fingerprint of the *binary public key* part of the kay-pair
+which you have used to sign your response. It MUST match one of the keys you
+previously published in your manifest file.
 
 
 Implementing a client
@@ -164,14 +177,30 @@ Certificate Authentication method. The clients are REQUIRED to meet all the
 requirements listed [here][srvauth-tlscert].
 
 
+### Include `Want-Digest` header (optional)
+
+You MAY include the `Want-Digest` header in your request, as explained
+[here][want-digest]. If included, then one of the digest algorithms included
+SHOULD be `SHA-256` (because it's currently the only algorithm required by the
+servers to support).
+
+If you don't include this header, servers will assume it's equal to:
+
+```http
+Want-Digest: SHA-256
+```
+
+
 ### Include `Accept-Signature` header
 
-You MUST include the `Accept-Signature` header in your request, with the value
-of `rsa-sha256`. This header informs the server that you want it to use HTTP
-Signature for server authentication.
+You MUST include the `Accept-Signature` header in your request. This header
+informs the server that you want it to sign its responses with HTTP Signatures.
+The value contains a comma-separated list of signature algorithms, ordered by
+client's preference. One of these algorithms SHOULD be `rsa-sha256`.
 
-Note, that currently this specification forces implementers to use `rsa-sha256`
-signatures. This MAY change in the future (in a backward-compatible way).
+Currently, `rsa-sha256` is the only algorithm required to be implemented by
+servers. If you don't include it in your `Accept-Signature` list, then the
+server MAY not sign the response at all.
 
 
 ### Consider signing yourself
@@ -249,9 +278,9 @@ your verification process will fail constantly).
 
 Extract the `keyId` from the response's `Signature` header.
 
-It MUST contain a HEX-encoded SHA-256 fingerprint of the RSA public key
-published by the server in the Registry. If it doesn't, then you MUST reject
-the server's response.
+It is supposed to contain a lower-case HEX-encoded SHA-256 fingerprint of the
+RSA binary public key published by the server in the Registry. If it doesn't,
+then you MUST reject the server's response.
 
 
 ### Verify the signature
@@ -264,10 +293,14 @@ If the signature is invalid, then you MUST reject the server's response.
 
 ### Verify the digest
 
-Calculate the Base64-encoded SHA-256 digest of the response's body, according
+Calculate the Base64-encoded `SHA-256` digest of the response's body, according
 to [RFC 3230][digest-base] and [RFC 5843][digest-sha256]. Compare it to the
 `Digest` header which MUST be present in the response. The values MUST match.
 If they don't, then you MUST reject the server's response.
+
+Remember, that the `Digest` header MAY contain many digests, in different
+algorithms. You MUST parse the header and extract the `SHA-256` algorithm from
+this list.
 
 
 <a name="original-date"></a>
@@ -363,6 +396,7 @@ Yes. See *Non-repudiation* section above.
 [develhub]: http://developers.erasmuswithoutpaper.eu/
 [statuses]: https://github.com/erasmus-without-paper/ewp-specs-management/blob/stable-v1/README.md#statuses
 [digest-base]: https://tools.ietf.org/html/rfc3230#section-4.3.2
+[want-digest]: https://tools.ietf.org/html/rfc3230#section-4.3.1
 [digest-sha256]: https://tools.ietf.org/html/rfc5843#section-2.2
 [httpsig-signature]: https://tools.ietf.org/html/draft-cavage-http-signatures-07#section-4
 [date-header]: https://tools.ietf.org/html/rfc2616#section-14.18

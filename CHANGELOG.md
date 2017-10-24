@@ -5,6 +5,31 @@ This document describes all the changes made to the *Authenticating Servers
 with HTTP Signature* document, starting from its first released version.
 
 
+0.4.0
+-----
+
+* Clarified, that it is RECOMMENDED for the servers to also declare their
+  support for *TLS Server Certificate Authentication* (whenever they support
+  *HTTP Signature Server Authentication*).
+
+* Changed the expected behavior when no supported algorithms are found in the
+  client's `Accept-Signature` header. Previously, servers were recommended to
+  respond with HTTP 400. Now, servers are recommended to ignore such signature
+  request (and proceed as if no `Accept-Signature` header was sent).
+
+* Explicitly stated that if the client includes the `Want-Digest` header with
+  an algorithm other than `SHA-256`, then the server MAY take the client's
+  wishes into account when choosing its digest algorithm. This step is
+  optional - the server MAY also simply always use `SHA-256`.
+
+* Explicitly stated that if the client includes the `Accept-Signature` header
+  with an algorithm other than `rsa-sha256`, then the server MAY take the
+  client's wishes into account when choosing its signature algorithm. This step
+  is optional - the server MAY also simply always use `rsa-sha256`.
+
+* Added a reminder that the `Digest` header may contain multiple digests.
+
+
 0.3.0
 -----
 
