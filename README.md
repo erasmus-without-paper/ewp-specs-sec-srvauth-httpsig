@@ -303,6 +303,24 @@ algorithms. You MUST parse the header and extract the `SHA-256` algorithm from
 this list.
 
 
+### Ignore unsigned headers
+
+Clients MUST ignore all response headers which hadn't been signed by the
+server. They might have been added by the attacker in transport. This is
+important especially in cases when TLS is not used in some parts of the
+transport, or when you don't fully trust the partner's TLS implementation.
+
+The safest way to properly ignore such headers is to modify your `Response`
+object *now* (during the authentication and authorization process), by either
+removing the suspicious headers, or at least changing their name (e.g.
+prepending it with `Unsigned-`). Then, pass the modified `Response` along as the
+result of your verification, so that the actual client you are implementing
+believes that the server didn't supply these headers at all. This approach
+is much safer than trusting yourself to remember to verify this every time
+before you access every header in every single ones of your underlying clients
+(and some clients might be dependent on response's headers).
+
+
 <a name="original-date"></a>
 
 About the `Original-Date` header
