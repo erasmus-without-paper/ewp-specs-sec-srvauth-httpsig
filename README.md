@@ -167,6 +167,19 @@ which you have used to sign your response. It MUST match one of the keys you
 previously published in your manifest file.
 
 
+### Take care to *not* modify it again
+
+Many frameworks or proxies might try to automatically modify your response
+*after* you sign it. For example, they may try to add additional `gzip` coding
+to your response's `Content-Encodings` if they detect that the client supports
+it. In many cases, this would be a good thing, but in this case, such changes
+could break your HTTP Signature (because we sign the content *after* it has
+been encoded). Make sure that you disable such automatic modifications when you
+use HTTP Signatures for signing.
+
+On this topic, also read the chapter about the `Original-Date` header below.
+
+
 Implementing a client
 ---------------------
 
