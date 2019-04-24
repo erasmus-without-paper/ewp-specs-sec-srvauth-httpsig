@@ -120,7 +120,7 @@ find any standard header for expressing that, we have invented our own:
    that your clock is synchronized (otherwise the client may reject your
    response).
 
- * You MUST include the `Digest` header in your request, as explained
+ * You MUST include the `Digest` header in your response, as explained
    [here][digest-base]. If the client sent you a `Want-Digest` header, then you
    MAY take it into account when choosing your digest algorithm, but you are
    REQUIRED to support only one digest algorithm - `SHA-256`.
