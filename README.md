@@ -40,7 +40,7 @@ In particular, it is RECOMMENDED for servers to declare their support for *TLS
 Server Certificate Authentication*. For example, if they use
 `sec:HttpSecurityOptions` datatype to describe their security requirements,
 then they should have *TLS Server Certificate Authentication* listed among
-their `<sec:client-auth-methods>` elements. This will allow clients which do
+their `<sec:server-auth-methods>` elements. This will allow clients which do
 not support *HTTP Signature Server Authentication* to connect to your endpoints
 in a backward-compatible way.
 
