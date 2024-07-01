@@ -342,18 +342,16 @@ About the `Original-Date` header
 While testing EWP HTTP Signature specifications (both of them), some developers
 [reported](https://github.com/erasmus-without-paper/ewp-specs-sec-srvauth-httpsig/issues/1)
 that the values of their `Date` headers got replaced by proxies, thus
-invalidating their signatures. The `Original-Date` has been introduced in this
+invalidating their signatures.
+In practice, no reliable way to prevent this from happening was found.
+The `Original-Date` has been introduced in this
 specification as a measure to circumvent this problem.
 
- * If your proxy is replacing the `Date` header, and you cannot reliably
-   reconfigure it to not do so, then you MAY use the `Original-Date` header as
-   a replacement for the `Date` header. The format of the `Original-Date`
+ * The format of the `Original-Date`
    header, if included, MUST match the "regular" format of the `Date` header,
    as defined in [RFC 2616][date-header].
 
- * If your proxy is not replacing the `Date` header, or you can reliably
-   reconfigure your proxy to not do so, then it is RECOMMENDED to use the
-   `Date` header only, and to NOT include the `Original-Date` header in signed
+ * It is RECOMMENDED to use the `Original-Date` header in signed
    payloads.
 
 
