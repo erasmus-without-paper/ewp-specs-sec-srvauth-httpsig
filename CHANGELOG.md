@@ -5,6 +5,13 @@ This document describes all the changes made to the *Authenticating Servers
 with HTTP Signature* document, starting from its first released version.
 
 
+1.1.0
+-----
+
+* Recommend using the Original-Date header.
+* Typo in the manifest security element name.
+
+
 1.0.2
 -----
 
