@@ -5,6 +5,12 @@ This document describes all the changes made to the *Authenticating Servers
 with HTTP Signature* document, starting from its first released version.
 
 
+1.0.2
+-----
+
+* Made a small fix in README.
+
+
 1.0.1
 -----
 
